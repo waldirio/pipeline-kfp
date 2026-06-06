@@ -1,0 +1,78 @@
+# PIPELINE DEFINITION
+# Name: my-pipeline
+components:
+  comp-first-pipeline:
+    executorLabel: exec-first-pipeline
+    inputDefinitions:
+      parameters:
+        message:
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-for-loop-2:
+    dag:
+      tasks:
+        first-pipeline:
+          cachingOptions:
+            enableCache: true
+          componentRef:
+            name: comp-first-pipeline
+          inputs:
+            parameters:
+              message:
+                componentInputParameter: pipelinechannel--loop-item-param-1
+          taskInfo:
+            name: first-pipeline
+    inputDefinitions:
+      parameters:
+        pipelinechannel--loop-item-param-1:
+          parameterType: STRING
+deploymentSpec:
+  executors:
+    exec-first-pipeline:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - first_pipeline
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef first_pipeline(message: str) -> str:\n    print(f\"Hello {message}\
+          \ World!\")\n\n    return message\n\n"
+        image: python:3.11
+pipelineInfo:
+  name: my-pipeline
+root:
+  dag:
+    tasks:
+      for-loop-2:
+        componentRef:
+          name: comp-for-loop-2
+        parameterIterator:
+          itemInput: pipelinechannel--loop-item-param-1
+          items:
+            raw: '["a", "b", "c", "d"]'
+        taskInfo:
+          name: for-loop-2
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.16.1
