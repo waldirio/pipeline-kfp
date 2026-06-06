@@ -1,0 +1,96 @@
+# PIPELINE DEFINITION
+# Name: my-pipeline
+components:
+  comp-first-pipeline:
+    executorLabel: exec-first-pipeline
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-second-pipeline:
+    executorLabel: exec-second-pipeline
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+deploymentSpec:
+  executors:
+    exec-first-pipeline:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - first_pipeline
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef first_pipeline() -> str:\n    print(\"Hello First World!\")\n\
+          \n    return \"first\"\n\n"
+        image: python:3.11
+    exec-second-pipeline:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - second_pipeline
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef second_pipeline() -> str:\n    print(\"Hello Second World!\"\
+          )\n\n    return \"second\"\n\n"
+        image: python:3.11
+pipelineInfo:
+  name: my-pipeline
+root:
+  dag:
+    tasks:
+      first-pipeline:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-first-pipeline
+        taskInfo:
+          name: first-pipeline
+      second-pipeline:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-second-pipeline
+        taskInfo:
+          name: second-pipeline
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.16.1
