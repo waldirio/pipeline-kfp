@@ -40,8 +40,8 @@ basic.yaml
 
 ```
 (pipeline) $ python basic_using_parallelfor.py
-(pipeline) $ ls basic_using_parallelfor.py
-basic_using_parallelfor.py
+(pipeline) $ ls basic_using_parallelfor.yaml
+basic_using_parallelfor.yaml
 ```
 
 From this point, you should be good to go, access your `RHOAI` webUI, Click on your `DataScience` Project, `Pipelines`, and import the `YAML` file generated above.
